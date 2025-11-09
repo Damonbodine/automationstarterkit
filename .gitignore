@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Sensitive files
+gcloud-keys.json
+*.json.key
+*.pem
+.env
+.env.local
+.env.*.local
+
+# Uploads directory
+uploads/*
+!uploads/.gitkeep
+
+# Templates (if they're generated)
+# templates/
+
+# Next.js (ocr-app)
+ocr-app/.next/
+ocr-app/out/
+ocr-app/node_modules/
+ocr-app/.env.local
+ocr-app/.env.*.local
+
+# Dependencies
+node_modules/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
