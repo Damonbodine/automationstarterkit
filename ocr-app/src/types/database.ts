@@ -1,0 +1,310 @@
+// Database types generated from Supabase schema
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export type Database = {
+  public: {
+    Tables: {
+      users: {
+        Row: {
+          id: string;
+          email: string;
+          name: string | null;
+          google_user_id: string | null;
+          google_access_token: string | null;
+          google_refresh_token: string | null;
+          preferences: Json;
+          plan_tier: 'free' | 'pro' | 'team' | 'enterprise';
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          name?: string | null;
+          google_user_id?: string | null;
+          google_access_token?: string | null;
+          google_refresh_token?: string | null;
+          preferences?: Json;
+          plan_tier?: 'free' | 'pro' | 'team' | 'enterprise';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          name?: string | null;
+          google_user_id?: string | null;
+          google_access_token?: string | null;
+          google_refresh_token?: string | null;
+          preferences?: Json;
+          plan_tier?: 'free' | 'pro' | 'team' | 'enterprise';
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      email_messages: {
+        Row: {
+          id: string;
+          user_id: string;
+          gmail_id: string;
+          thread_id: string | null;
+          subject: string | null;
+          from_email: string | null;
+          from_name: string | null;
+          to_email: string | null;
+          cc_emails: string[] | null;
+          bcc_emails: string[] | null;
+          body_plain: string | null;
+          body_html: string | null;
+          snippet: string | null;
+          has_attachments: boolean;
+          is_read: boolean;
+          is_starred: boolean;
+          labels: string[] | null;
+          received_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          gmail_id: string;
+          thread_id?: string | null;
+          subject?: string | null;
+          from_email?: string | null;
+          from_name?: string | null;
+          to_email?: string | null;
+          cc_emails?: string[] | null;
+          bcc_emails?: string[] | null;
+          body_plain?: string | null;
+          body_html?: string | null;
+          snippet?: string | null;
+          has_attachments?: boolean;
+          is_read?: boolean;
+          is_starred?: boolean;
+          labels?: string[] | null;
+          received_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          gmail_id?: string;
+          thread_id?: string | null;
+          subject?: string | null;
+          from_email?: string | null;
+          from_name?: string | null;
+          to_email?: string | null;
+          cc_emails?: string[] | null;
+          bcc_emails?: string[] | null;
+          body_plain?: string | null;
+          body_html?: string | null;
+          snippet?: string | null;
+          has_attachments?: boolean;
+          is_read?: boolean;
+          is_starred?: boolean;
+          labels?: string[] | null;
+          received_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      email_classifications: {
+        Row: {
+          id: string;
+          email_id: string;
+          category: 'client_request' | 'invoice' | 'contract' | 'project_update' | 'general' | 'other' | null;
+          priority: 'urgent' | 'high' | 'medium' | 'low' | null;
+          sentiment: 'positive' | 'neutral' | 'negative' | 'action_required' | null;
+          tags: string[] | null;
+          assigned_agents: string[] | null;
+          confidence_score: number | null;
+          user_feedback: string | null;
+          classified_at: string;
+        };
+        Insert: {
+          id?: string;
+          email_id: string;
+          category?: 'client_request' | 'invoice' | 'contract' | 'project_update' | 'general' | 'other' | null;
+          priority?: 'urgent' | 'high' | 'medium' | 'low' | null;
+          sentiment?: 'positive' | 'neutral' | 'negative' | 'action_required' | null;
+          tags?: string[] | null;
+          assigned_agents?: string[] | null;
+          confidence_score?: number | null;
+          user_feedback?: string | null;
+          classified_at?: string;
+        };
+        Update: {
+          id?: string;
+          email_id?: string;
+          category?: 'client_request' | 'invoice' | 'contract' | 'project_update' | 'general' | 'other' | null;
+          priority?: 'urgent' | 'high' | 'medium' | 'low' | null;
+          sentiment?: 'positive' | 'neutral' | 'negative' | 'action_required' | null;
+          tags?: string[] | null;
+          assigned_agents?: string[] | null;
+          confidence_score?: number | null;
+          user_feedback?: string | null;
+          classified_at?: string;
+        };
+      };
+      projects: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          description: string | null;
+          client_name: string | null;
+          client_email: string | null;
+          status: 'active' | 'paused' | 'completed' | 'archived';
+          start_date: string | null;
+          end_date: string | null;
+          budget: number | null;
+          budget_currency: string;
+          google_sheet_id: string | null;
+          google_folder_id: string | null;
+          google_doc_id: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          description?: string | null;
+          client_name?: string | null;
+          client_email?: string | null;
+          status?: 'active' | 'paused' | 'completed' | 'archived';
+          start_date?: string | null;
+          end_date?: string | null;
+          budget?: number | null;
+          budget_currency?: string;
+          google_sheet_id?: string | null;
+          google_folder_id?: string | null;
+          google_doc_id?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          description?: string | null;
+          client_name?: string | null;
+          client_email?: string | null;
+          status?: 'active' | 'paused' | 'completed' | 'archived';
+          start_date?: string | null;
+          end_date?: string | null;
+          budget?: number | null;
+          budget_currency?: string;
+          google_sheet_id?: string | null;
+          google_folder_id?: string | null;
+          google_doc_id?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      tasks: {
+        Row: {
+          id: string;
+          user_id: string;
+          project_id: string | null;
+          email_id: string | null;
+          title: string;
+          description: string | null;
+          status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+          priority: 'urgent' | 'high' | 'medium' | 'low';
+          due_date: string | null;
+          assigned_to: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          project_id?: string | null;
+          email_id?: string | null;
+          title: string;
+          description?: string | null;
+          status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+          priority?: 'urgent' | 'high' | 'medium' | 'low';
+          due_date?: string | null;
+          assigned_to?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          project_id?: string | null;
+          email_id?: string | null;
+          title?: string;
+          description?: string | null;
+          status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+          priority?: 'urgent' | 'high' | 'medium' | 'low';
+          due_date?: string | null;
+          assigned_to?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      agent_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          email_id: string | null;
+          agent_type: string;
+          action: string;
+          input_data: Json | null;
+          output_data: Json | null;
+          success: boolean;
+          error_message: string | null;
+          execution_time_ms: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          email_id?: string | null;
+          agent_type: string;
+          action: string;
+          input_data?: Json | null;
+          output_data?: Json | null;
+          success?: boolean;
+          error_message?: string | null;
+          execution_time_ms?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          email_id?: string | null;
+          agent_type?: string;
+          action?: string;
+          input_data?: Json | null;
+          output_data?: Json | null;
+          success?: boolean;
+          error_message?: string | null;
+          execution_time_ms?: number | null;
+          created_at?: string;
+        };
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: {
+      plan_tier: 'free' | 'pro' | 'team' | 'enterprise';
+      email_category: 'client_request' | 'invoice' | 'contract' | 'project_update' | 'general' | 'other';
+      priority_level: 'urgent' | 'high' | 'medium' | 'low';
+      sentiment_type: 'positive' | 'neutral' | 'negative' | 'action_required';
+      project_status: 'active' | 'paused' | 'completed' | 'archived';
+      task_status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+    };
+  };
+};
