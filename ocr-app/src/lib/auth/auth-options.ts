@@ -121,7 +121,7 @@ export const authOptions: NextAuthOptions = {
 
         if (dbUser) {
           session.user.id = dbUser.id;
-          session.user.planTier = dbUser.plan_tier;
+          session.user.planTier = dbUser.plan_tier ?? 'free';
         }
       }
 

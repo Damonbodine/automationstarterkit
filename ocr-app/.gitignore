@@ -43,3 +43,5 @@ coverage
 *.key
 gcloud-keys.json
 service-account*.json
+tsconfig.tsbuildinfo
+*.backup

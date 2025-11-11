@@ -1,3 +1,30 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind v4 setup */
+@import "tailwindcss";
+
+/* Use class-based dark mode variant, e.g. `dark:bg-gray-900` */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens (theme) */
+@theme {
+  --color-primary-50: #f0f9ff;
+  --color-primary-500: #3b82f6;
+  --color-primary-900: #1e3a8a;
+
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+
+  --color-urgent: #dc2626;
+  --color-high: #f97316;
+  --color-medium: #3b82f6;
+  --color-low: #6b7280;
+}
+
+/* Base tweaks */
+:root {
+  color-scheme: light dark;
+}
+
+html, body {
+  min-height: 100%;
+}

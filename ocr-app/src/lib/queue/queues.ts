@@ -6,6 +6,7 @@ export const QUEUE_NAMES = {
   EMAIL_SYNC: 'email-sync',
   EMAIL_CLASSIFICATION: 'email-classification',
   AI_AGENTS: 'ai-agents',
+  DEAD_LETTER: 'dead-letter',
 } as const;
 
 // Job types
@@ -24,6 +25,15 @@ export interface AIAgentJob {
   emailId: string;
   userId: string;
   metadata?: Record<string, any>;
+}
+
+export interface DeadLetterJob {
+  originalQueue: keyof typeof QUEUE_NAMES;
+  jobName: string;
+  data: Record<string, any>;
+  attemptsMade: number;
+  failedReason?: string;
+  stacktrace?: string[];
 }
 
 // Queue configurations
@@ -60,6 +70,12 @@ export const emailClassificationQueue = new Queue<EmailClassificationJob>(
 // AI Agents Queue
 export const aiAgentsQueue = new Queue<AIAgentJob>(
   QUEUE_NAMES.AI_AGENTS,
+  queueConfig
+);
+
+// Dead Letter Queue
+export const deadLetterQueue = new Queue<DeadLetterJob>(
+  QUEUE_NAMES.DEAD_LETTER,
   queueConfig
 );
 
@@ -128,6 +144,9 @@ export async function getQueueStats(queueName: string) {
     case QUEUE_NAMES.AI_AGENTS:
       queue = aiAgentsQueue;
       break;
+    case QUEUE_NAMES.DEAD_LETTER:
+      queue = deadLetterQueue;
+      break;
     default:
       throw new Error(`Unknown queue: ${queueName}`);
   }
@@ -147,4 +166,14 @@ export async function getQueueStats(queueName: string) {
     failed,
     delayed,
   };
+}
+
+/**
+ * Add a job to the dead-letter queue after exhausting retries
+ */
+export async function queueDeadLetter(payload: DeadLetterJob) {
+  return await deadLetterQueue.add('dead-letter', payload, {
+    removeOnComplete: false,
+    removeOnFail: false,
+  });
 }

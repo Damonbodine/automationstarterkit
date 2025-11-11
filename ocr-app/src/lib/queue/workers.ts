@@ -6,8 +6,17 @@ import {
   EmailClassificationJob,
   AIAgentJob,
 } from './queues';
+import { queueDeadLetter, QUEUE_NAMES as NAMES, deadLetterQueue, DeadLetterJob } from './queues';
 import { syncEmails } from '@/lib/email/email-sync';
 import { classifyEmail } from '@/lib/ai/classifier';
+import { extractTasks } from '@/lib/ai/agents/task-extractor';
+import { summarizeDocument } from '@/lib/ai/agents/document-summarizer';
+import { generateSOW } from '@/lib/ai/agents/sow-generator';
+import {
+  AutoSyncSchedulerJob,
+  checkAndQueuePollingSyncs,
+  checkAndRenewWatches,
+} from './auto-sync-scheduler';
 
 /**
  * Email Sync Worker
@@ -89,23 +98,20 @@ export const aiAgentsWorker = new Worker<AIAgentJob>(
     console.log(`Processing ${type} for email ${emailId}, user ${userId}`);
 
     try {
-      // TODO: Implement agent logic
+      let result: any = null;
       switch (type) {
         case 'sow-generator':
-          // Generate SOW document
-          console.log('SOW generator not yet implemented');
+          result = await generateSOW({ emailId, userId, metadata });
           break;
         case 'task-extractor':
-          // Extract tasks from email
-          console.log('Task extractor not yet implemented');
+          result = await extractTasks(emailId);
           break;
         case 'document-summarizer':
-          // Summarize document
-          console.log('Document summarizer not yet implemented');
+          result = await summarizeDocument(emailId);
           break;
       }
 
-      return { success: true, type };
+      return { success: true, type, result };
     } catch (error) {
       console.error(`AI agent ${type} failed for email ${emailId}:`, error);
       throw error;
@@ -122,15 +128,90 @@ export const aiAgentsWorker = new Worker<AIAgentJob>(
 );
 
 /**
+ * Dead Letter Worker
+ * Consumes failed jobs for inspection/alerting (no retries)
+ */
+export const deadLetterWorker = new Worker<DeadLetterJob>(
+  NAMES.DEAD_LETTER,
+  async (job: Job<DeadLetterJob>) => {
+    const { originalQueue, jobName, attemptsMade, failedReason } = job.data;
+    console.error(
+      `Dead-lettered job from ${originalQueue} (${jobName}), attempts: ${attemptsMade}, reason: ${failedReason}`
+    );
+    return { acknowledged: true };
+  },
+  {
+    connection: getRedisClient(),
+    concurrency: 1,
+  }
+);
+
+/**
+ * Auto-Sync Scheduler Worker
+ * Processes scheduled polling checks and watch renewals
+ */
+export const autoSyncSchedulerWorker = new Worker<AutoSyncSchedulerJob>(
+  'auto-sync-scheduler',
+  async (job: Job<AutoSyncSchedulerJob>) => {
+    const { type } = job.data;
+
+    console.log(`[Auto-Sync Scheduler] Processing ${type} job`);
+
+    try {
+      switch (type) {
+        case 'check-polling':
+          await checkAndQueuePollingSyncs();
+          return { success: true, type: 'check-polling' };
+
+        case 'renew-watches':
+          await checkAndRenewWatches();
+          return { success: true, type: 'renew-watches' };
+
+        default:
+          throw new Error(`Unknown scheduler job type: ${type}`);
+      }
+    } catch (error) {
+      console.error(`[Auto-Sync Scheduler] Job ${type} failed:`, error);
+      throw error;
+    }
+  },
+  {
+    connection: getRedisClient(),
+    concurrency: 1, // Process scheduler jobs one at a time
+  }
+);
+
+/**
  * Register error handlers for all workers
  */
-[emailSyncWorker, emailClassificationWorker, aiAgentsWorker].forEach((worker) => {
+[emailSyncWorker, emailClassificationWorker, aiAgentsWorker, deadLetterWorker, autoSyncSchedulerWorker].forEach((worker) => {
   worker.on('completed', (job) => {
     console.log(`Job ${job.id} completed successfully`);
   });
 
   worker.on('failed', (job, err) => {
     console.error(`Job ${job?.id} failed:`, err);
+
+    // If no job or no attempts info, skip DLQ processing
+    if (!job) return;
+
+    const attempts = job.opts.attempts ?? 1;
+    const attemptsMade = job.attemptsMade ?? 0;
+
+    // Push to dead-letter queue only after exhausting retries
+    if (attemptsMade >= attempts) {
+      const originalQueue = (job.queueName as keyof typeof NAMES) || 'UNKNOWN';
+      queueDeadLetter({
+        originalQueue,
+        jobName: job.name,
+        data: job.data as Record<string, any>,
+        attemptsMade,
+        failedReason: err?.message,
+        stacktrace: job.stacktrace,
+      }).catch((e) => {
+        console.error('Failed to enqueue dead-letter job:', e);
+      });
+    }
   });
 
   worker.on('error', (err) => {
@@ -148,6 +229,8 @@ export async function closeWorkers(): Promise<void> {
     emailSyncWorker.close(),
     emailClassificationWorker.close(),
     aiAgentsWorker.close(),
+    deadLetterWorker.close(),
+    autoSyncSchedulerWorker.close(),
   ]);
 
   console.log('All workers closed');

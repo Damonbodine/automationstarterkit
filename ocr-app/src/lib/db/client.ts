@@ -1,15 +1,15 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
 // Singleton pattern for Supabase client
-let supabaseClientSingleton: ReturnType<typeof createClient<Database>> | null = null;
-let supabaseServerSingleton: ReturnType<typeof createClient<Database>> | null = null;
+let supabaseClientSingleton: SupabaseClient<Database> | null = null;
+let supabaseServerSingleton: SupabaseClient<Database> | null = null;
 
 /**
  * Get Supabase client for client-side operations
  * Uses anon key with RLS
  */
-export function getSupabaseClient() {
+export function getSupabaseClient(): SupabaseClient<Database> {
   if (!supabaseClientSingleton) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -36,7 +36,7 @@ export function getSupabaseClient() {
  * Uses service role key - bypasses RLS
  * ONLY use for operations that require admin access
  */
-export function getSupabaseServerClient() {
+export function getSupabaseServerClient(): SupabaseClient<Database> {
   if (!supabaseServerSingleton) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -62,7 +62,7 @@ export function getSupabaseServerClient() {
  * Create a Supabase client with a specific user's session
  * For server-side operations that should respect RLS
  */
-export function createSupabaseClientWithSession(accessToken: string) {
+export function createSupabaseClientWithSession(accessToken: string): SupabaseClient<Database> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

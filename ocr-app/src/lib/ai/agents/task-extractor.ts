@@ -1,9 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { getSupabaseServerClient } from '@/lib/db/client';
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+import { createClaudeMessage } from '@/lib/ai/anthropic-client';
 
 interface ExtractedTask {
   title: string;
@@ -76,16 +72,7 @@ Respond in JSON format:
   "reasoning": "Brief explanation of why these are tasks"
 }`;
 
-  const message = await anthropic.messages.create({
-    model: 'claude-3-5-sonnet-20241022',
-    max_tokens: 2048,
-    messages: [
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-  });
+  const message = await createClaudeMessage({ prompt, maxTokens: 2048 });
 
   const content = message.content[0];
   if (content.type !== 'text') {
@@ -115,6 +102,7 @@ Respond in JSON format:
 
     const { error: insertError } = await supabase
       .from('tasks')
+      // @ts-ignore - Supabase type inference issue
       .insert(tasksToInsert);
 
     if (insertError) {
@@ -123,6 +111,7 @@ Respond in JSON format:
     }
 
     // Log the agent action
+    // @ts-ignore - Supabase type inference issue
     await supabase.from('agent_logs').insert({
       user_id: email.user_id,
       email_id: emailId,

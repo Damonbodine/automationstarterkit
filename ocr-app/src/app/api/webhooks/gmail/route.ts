@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { queueEmailSync } from '@/lib/queue/queues';
 import { getSupabaseServerClient } from '@/lib/db/client';
+import { verifyPubSubRequest } from '@/lib/google/pubsub-verify';
 
 /**
  * Gmail Pub/Sub webhook handler
@@ -8,6 +9,12 @@ import { getSupabaseServerClient } from '@/lib/db/client';
  */
 export async function POST(request: NextRequest) {
   try {
+    // Verify Pub/Sub OIDC token (if enabled)
+    const verified = await verifyPubSubRequest(request);
+    if (!verified) {
+      return NextResponse.json({ error: 'Unauthorized Pub/Sub message' }, { status: 401 });
+    }
+
     const body = await request.json();
 
     // Pub/Sub sends data as base64-encoded JSON in message.data
@@ -40,6 +47,12 @@ export async function POST(request: NextRequest) {
     // Queue incremental sync for this user
     const userId = (result.data as { id: string }).id;
     await queueEmailSync(userId, false);
+
+    // Update watch subscription's last_notification_at
+    await supabase
+      .from('gmail_watch_subscriptions')
+      .update({ last_notification_at: new Date().toISOString() })
+      .eq('user_id', userId);
 
     console.log(`Gmail webhook processed for user ${userId}, historyId: ${historyId}`);
 

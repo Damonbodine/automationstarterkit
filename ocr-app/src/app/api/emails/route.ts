@@ -45,11 +45,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (category) {
-      query = query.eq('email_classifications.category', category);
+      query = query.eq('email_classifications.category', category as any);
     }
 
     if (priority) {
-      query = query.eq('email_classifications.priority', priority);
+      query = query.eq('email_classifications.priority', priority as any);
     }
 
     const { data: emails, error, count } = await query;

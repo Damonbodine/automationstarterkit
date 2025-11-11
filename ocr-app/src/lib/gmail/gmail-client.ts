@@ -1,6 +1,6 @@
 import { google, gmail_v1 } from 'googleapis';
 import { getSupabaseServerClient } from '@/lib/db/client';
-import { decryptToken } from '@/lib/encryption/token-encryption';
+import { decryptToken, encryptToken } from '@/lib/encryption/token-encryption';
 
 /**
  * Rate limiter for Gmail API requests
@@ -42,10 +42,11 @@ const rateLimiter = new RateLimiter(
  * Gmail API client wrapper
  */
 export class GmailClient {
-  private gmail: gmail_v1.Gmail;
+  public gmail: gmail_v1.Gmail;
   private userId: string;
+  private oauth2Client: InstanceType<typeof google.auth.OAuth2>;
 
-  constructor(accessToken: string, userId: string) {
+  constructor(accessToken: string, userId: string, refreshToken?: string | null) {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET
@@ -53,10 +54,36 @@ export class GmailClient {
 
     oauth2Client.setCredentials({
       access_token: accessToken,
+      refresh_token: refreshToken || undefined,
     });
 
     this.gmail = google.gmail({ version: 'v1', auth: oauth2Client });
     this.userId = userId;
+    this.oauth2Client = oauth2Client;
+
+    // Persist refreshed tokens
+    this.oauth2Client.on('tokens', async (tokens) => {
+      try {
+        const supabase = getSupabaseServerClient();
+
+        const updates: Record<string, string | null> = {};
+        if (tokens.access_token) {
+          updates.google_access_token = encryptToken(tokens.access_token);
+        }
+        if (tokens.refresh_token) {
+          updates.google_refresh_token = encryptToken(tokens.refresh_token);
+        }
+
+        if (Object.keys(updates).length) {
+          await supabase
+            .from('users')
+            .update({ ...updates, updated_at: new Date().toISOString() })
+            .eq('id', this.userId);
+        }
+      } catch (err) {
+        console.error('Failed to persist refreshed Google tokens:', err);
+      }
+    });
   }
 
   /**
@@ -76,8 +103,11 @@ export class GmailClient {
     }
 
     const accessToken = decryptToken(user.google_access_token);
+    const refreshToken = user.google_refresh_token
+      ? decryptToken(user.google_refresh_token)
+      : undefined;
 
-    return new GmailClient(accessToken, userId);
+    return new GmailClient(accessToken, userId, refreshToken);
   }
 
   /**
@@ -124,6 +154,19 @@ export class GmailClient {
   }
 
   /**
+   * Get attachment data for a message part
+   */
+  async getAttachment(messageId: string, attachmentId: string) {
+    await rateLimiter.acquire(this.userId);
+    const response = await this.gmail.users.messages.attachments.get({
+      userId: 'me',
+      messageId,
+      id: attachmentId,
+    });
+    return response.data;
+  }
+
+  /**
    * Batch get messages
    */
   async batchGetMessages(messageIds: string[]): Promise<gmail_v1.Schema$Message[]> {
@@ -158,7 +201,7 @@ export class GmailClient {
 
     return {
       history: response.data.history || [],
-      historyId: response.data.historyId,
+      historyId: response.data.historyId ?? undefined,
     };
   }
 
@@ -242,7 +285,7 @@ export class GmailClient {
       const header = headers.find(
         (h) => h.name?.toLowerCase() === name.toLowerCase()
       );
-      return header?.value;
+      return header?.value ?? undefined;
     };
 
     const fromHeader = getHeader('From') || '';

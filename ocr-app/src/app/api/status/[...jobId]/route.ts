@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ImageAnnotatorClient, protos } from '@google-cloud/vision';
 import { Storage } from '@google-cloud/storage';
+import { getSupabaseServerClient } from '@/lib/db/client';
 
 const BUCKET_NAME = 'possible-point-477719-n3-pdfs';
 
@@ -59,7 +60,24 @@ export async function GET(
       }
 
       const text = await getPdfText(gcsOutputUri);
-      return NextResponse.json({ status: 'done', text });
+
+      // Optionally persist to documents table if documentId provided
+      const url = new URL(request.url);
+      const documentId = url.searchParams.get('documentId');
+      if (documentId) {
+        try {
+          const supabase = getSupabaseServerClient();
+          await supabase
+            .from('documents')
+            // @ts-ignore - Supabase type inference issue
+            .update({ ocr_text: text, ocr_completed_at: new Date().toISOString() })
+            .eq('id', documentId);
+        } catch (e) {
+          console.error('Failed to persist OCR result:', e);
+        }
+      }
+
+      return NextResponse.json({ status: 'done', text, documentId: documentId || null });
     } else {
       return NextResponse.json({ status: 'processing' });
     }
