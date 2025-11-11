@@ -11,7 +11,7 @@ export default function LoginPage() {
           Connect your Google account so the app can read emails (read/modify), and access Drive/Docs/Sheets for agents.
         </p>
         <button
-          onClick={() => signIn('google')}
+          onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
           className="px-4 py-2 bg-blue-600 text-white rounded"
         >
           Continue with Google
