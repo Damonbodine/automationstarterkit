@@ -3,17 +3,27 @@
 import Link from 'next/link';
 import { CategoryBadge, PriorityBadge, SentimentBadge } from '@/components/ui/Badge';
 import { formatDate } from '@/lib/utils';
+import { Star } from 'lucide-react';
 
 interface ItemProps {
   email: any; // relax typing to avoid blocking UI on DB type variance
   selected: boolean;
   onToggle: (id: string, checked: boolean) => void;
+  onStarToggle?: (id: string, starred: boolean) => void;
 }
 
-export default function EmailListItem({ email, selected, onToggle }: ItemProps) {
+export default function EmailListItem({ email, selected, onToggle, onStarToggle }: ItemProps) {
   const classification = (Array.isArray(email.email_classifications)
     ? email.email_classifications[0]
     : email.email_classifications) as any | undefined;
+
+  const handleStarClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onStarToggle) {
+      onStarToggle(email.id, !email.is_starred);
+    }
+  };
 
   return (
     <div className="group relative">
@@ -25,8 +35,21 @@ export default function EmailListItem({ email, selected, onToggle }: ItemProps) 
           className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
         />
       </label>
+      <button
+        onClick={handleStarClick}
+        className="absolute left-8 top-1/2 z-10 -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+        aria-label={email.is_starred ? 'Unstar email' : 'Star email'}
+      >
+        <Star
+          className={`h-4 w-4 ${
+            email.is_starred
+              ? 'fill-yellow-400 text-yellow-400'
+              : 'text-gray-400 hover:text-yellow-400'
+          }`}
+        />
+      </button>
       <Link href={`/emails/${email.id}`} className="block">
-        <div className="pl-9">
+        <div className="pl-16">
           <div className="hover:shadow-md transition-shadow rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">

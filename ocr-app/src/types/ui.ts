@@ -61,6 +61,10 @@ export interface Document {
   ocr_text: string | null;
   ocr_completed_at: string | null;
   created_at: string | null;
+  source_type?: 'upload' | 'google_drive' | null;
+  gdrive_file_id?: string | null;
+  webviewlink?: string | null;
+  content?: string | null;
 }
 
 export interface AgentLog {

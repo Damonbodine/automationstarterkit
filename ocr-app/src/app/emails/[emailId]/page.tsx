@@ -12,20 +12,30 @@ import {
   FileText,
   Download,
   Paperclip,
-  Calendar,
-  User,
-  Mail,
   AlertCircle,
 } from 'lucide-react';
 import type { EmailWithClassification, Task } from '@/types/ui';
 import RunAgentActions from '@/components/email/RunAgentActions';
 import AutoSummarizer from '@/components/email/AutoSummarizer';
+import EmailThread from '@/components/email/EmailThread';
 
 async function getEmailDetails(emailId: string, userId: string) {
   const supabase = getSupabaseServerClient();
 
-  // Get email with classification and summary
-  const { data: email, error: emailError } = await supabase
+  // Get the current email to find its thread_id
+  const { data: currentEmail, error: currentEmailError } = await supabase
+    .from('email_messages')
+    .select('thread_id')
+    .eq('id', emailId)
+    .eq('user_id', userId)
+    .single();
+
+  if (currentEmailError || !currentEmail || !currentEmail.thread_id) {
+    return null;
+  }
+
+  // Get all emails in the thread with classifications
+  const { data: threadEmails, error: threadError } = await supabase
     .from('email_messages')
     .select(
       `
@@ -39,27 +49,30 @@ async function getEmailDetails(emailId: string, userId: string) {
       )
     `
     )
-    .eq('id', emailId)
+    .eq('thread_id', currentEmail.thread_id)
     .eq('user_id', userId)
-    .single();
+    .order('received_at', { ascending: true });
 
-  if (emailError || !email) {
+  if (threadError || !threadEmails || threadEmails.length === 0) {
     return null;
   }
 
-  // Get tasks associated with this email
+  // Find the current email in the thread
+  const email = threadEmails.find(e => e.id === emailId) || threadEmails[threadEmails.length - 1];
+
+  // Get tasks associated with any email in this thread
   const { data: tasks } = await supabase
     .from('tasks')
     .select('*')
-    .eq('email_id', emailId)
+    .in('email_id', threadEmails.map(e => e.id))
     .eq('user_id', userId)
     .order('priority', { ascending: false });
 
-  // Get attachments/documents
+  // Get attachments/documents for all emails in thread
   const { data: documents } = await supabase
     .from('documents')
     .select('*')
-    .eq('email_id', emailId)
+    .in('email_id', threadEmails.map(e => e.id))
     .eq('user_id', userId);
 
   // Get summary - prefer the one from email record, fallback to agent_logs
@@ -80,6 +93,7 @@ async function getEmailDetails(emailId: string, userId: string) {
 
   return {
     email: email as any,
+    threadEmails: threadEmails as any[],
     tasks: (tasks || []) as Task[],
     documents: documents || [],
     summary: summary as any,
@@ -104,7 +118,7 @@ export default async function EmailDetailPage({ params }: PageProps) {
     redirect('/emails');
   }
 
-  const { email, tasks, documents, summary } = data as any;
+  const { email, threadEmails, tasks, documents, summary } = data as any;
   const classification = Array.isArray(email.email_classifications)
     ? email.email_classifications[0]
     : email.email_classifications;
@@ -135,40 +149,17 @@ export default async function EmailDetailPage({ params }: PageProps) {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Email Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Email Header */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <CardTitle className="text-2xl mb-2">
-                      {email.subject || '(No subject)'}
-                    </CardTitle>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium">From:</span>
-                        <span>{email.from_name || email.from_email}</span>
-                      </div>
-                      {email.to_emails && email.to_emails.length > 0 && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-gray-400" />
-                          <span className="font-medium">To:</span>
-                          <span>{email.to_emails.join(', ')}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium">Date:</span>
-                        <span>{new Date(email.received_at).toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                  {!email.is_read && (
-                    <Badge variant="primary">Unread</Badge>
-                  )}
-                </div>
-              </CardHeader>
-            </Card>
+            {/* Email Subject Header */}
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                {email.subject || '(No subject)'}
+              </h1>
+              {threadEmails.length > 1 && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Conversation with {threadEmails.length} messages
+                </p>
+              )}
+            </div>
 
             {/* AI Summary */}
             {summary && (
@@ -202,26 +193,8 @@ export default async function EmailDetailPage({ params }: PageProps) {
               </Card>
             )}
 
-            {/* Email Body */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Message</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {email.body_html ? (
-                  <div
-                    className="prose max-w-none"
-                    dangerouslySetInnerHTML={{ __html: email.body_html }}
-                  />
-                ) : email.body_plain ? (
-                  <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700">
-                    {email.body_plain}
-                  </pre>
-                ) : (
-                  <p className="text-gray-500 italic">No message content</p>
-                )}
-              </CardContent>
-            </Card>
+            {/* Email Thread */}
+            <EmailThread emails={threadEmails} currentEmailId={emailId} />
 
             {/* Attachments */}
             {documents.length > 0 && (
@@ -231,38 +204,48 @@ export default async function EmailDetailPage({ params }: PageProps) {
                     <Paperclip className="h-5 w-5" />
                     Attachments ({documents.length})
                   </CardTitle>
+                  <CardDescription>
+                    {threadEmails.length > 1 ? 'All attachments from this conversation' : 'Attachments from this email'}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {documents.map((doc: any) => (
-                      <div
-                        key={doc.id}
-                        className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="font-medium text-sm">{doc.filename}</p>
-                            <p className="text-xs text-gray-500">
-                              {doc.file_type} •{' '}
-                              {doc.file_size_bytes
-                                ? `${(doc.file_size_bytes / 1024).toFixed(0)} KB`
-                                : 'Unknown size'}
-                            </p>
+                    {documents.map((doc: any) => {
+                      // Find which email this document belongs to
+                      const docEmail = threadEmails.find((e: any) => e.id === doc.email_id);
+                      return (
+                        <div
+                          key={doc.id}
+                          className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <FileText className="h-5 w-5 text-gray-400 shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-sm truncate">{doc.filename}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {doc.file_type} •{' '}
+                                {doc.file_size_bytes
+                                  ? `${(doc.file_size_bytes / 1024).toFixed(0)} KB`
+                                  : 'Unknown size'}
+                                {threadEmails.length > 1 && docEmail && (
+                                  <> • from {docEmail.from_name || docEmail.from_email}</>
+                                )}
+                              </p>
+                            </div>
                           </div>
+                          {doc.gcs_url && (
+                            <a
+                              href={doc.gcs_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 shrink-0"
+                            >
+                              <Download className="h-4 w-4" />
+                            </a>
+                          )}
                         </div>
-                        {doc.gcs_url && (
-                          <a
-                            href={doc.gcs_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            <Download className="h-4 w-4" />
-                          </a>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -273,31 +256,42 @@ export default async function EmailDetailPage({ params }: PageProps) {
               <Card>
                 <CardHeader>
                   <CardTitle>Extracted Tasks ({tasks.length})</CardTitle>
-                  <CardDescription>AI-identified action items from this email</CardDescription>
+                  <CardDescription>
+                    {threadEmails.length > 1 ? 'AI-identified action items from this conversation' : 'AI-identified action items from this email'}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {tasks.map((task: any) => (
-                      <div
-                        key={task.id}
-                        className="p-3 border border-gray-200 rounded-lg"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-sm mb-1">{task.title}</h4>
-                            {task.description && (
-                              <p className="text-sm text-gray-600">{task.description}</p>
-                            )}
+                    {tasks.map((task: any) => {
+                      // Find which email this task belongs to
+                      const taskEmail = threadEmails.find((e: any) => e.id === task.email_id);
+                      return (
+                        <div
+                          key={task.id}
+                          className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-sm mb-1">{task.title}</h4>
+                              {task.description && (
+                                <p className="text-sm text-gray-600 dark:text-gray-300">{task.description}</p>
+                              )}
+                              {threadEmails.length > 1 && taskEmail && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  From {taskEmail.from_name || taskEmail.from_email}
+                                </p>
+                              )}
+                            </div>
+                            <PriorityBadge priority={task.priority} />
                           </div>
-                          <PriorityBadge priority={task.priority} />
+                          {task.due_date && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                              Due: {new Date(task.due_date).toLocaleDateString()}
+                            </p>
+                          )}
                         </div>
-                        {task.due_date && (
-                          <p className="text-xs text-gray-500 mt-2">
-                            Due: {new Date(task.due_date).toLocaleDateString()}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -382,25 +376,35 @@ export default async function EmailDetailPage({ params }: PageProps) {
             {/* Quick Info */}
             <Card>
               <CardHeader>
-                <CardTitle>Email Info</CardTitle>
+                <CardTitle>{threadEmails.length > 1 ? 'Conversation Info' : 'Email Info'}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
+                {threadEmails.length > 1 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">Messages</span>
+                    <span className="font-medium">{threadEmails.length}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Thread ID</span>
+                  <span className="text-gray-500 dark:text-gray-400">Thread ID</span>
                   <span className="font-mono text-xs">{email.thread_id.substring(0, 12)}...</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Status</span>
+                  <span className="text-gray-500 dark:text-gray-400">Status</span>
                   <span>{email.is_read ? 'Read' : 'Unread'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Attachments</span>
-                  <span>{documents.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Tasks</span>
-                  <span>{tasks.length}</span>
-                </div>
+                {documents.length > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">Attachments</span>
+                    <span>{documents.length}</span>
+                  </div>
+                )}
+                {tasks.length > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">Tasks</span>
+                    <span>{tasks.length}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

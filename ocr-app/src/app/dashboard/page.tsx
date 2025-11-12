@@ -10,7 +10,6 @@ import { Mail, RefreshCw } from 'lucide-react';
 import type { EmailWithClassification, DashboardStats } from '@/types/ui';
 import QuickStats from '@/components/dashboard/QuickStats';
 import PriorityQueueCard from '@/components/dashboard/PriorityQueueCard';
-import QueueStatusWidget from '@/components/dashboard/QueueStatusWidget';
 import QuickActionsRow from '@/components/dashboard/QuickActionsRow';
 import DashboardSyncToast from '@/components/dashboard/DashboardSyncToast';
 
@@ -151,10 +150,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </div>
         )}
 
-        {/* Quick Actions + Queue Status */}
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        {/* Quick Actions */}
+        <div className="mb-6">
           <QuickActionsRow />
-          <QueueStatusWidget />
         </div>
 
         {/* Quick Stats */}

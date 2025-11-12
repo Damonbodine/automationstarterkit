@@ -101,11 +101,27 @@ export async function checkAndQueuePollingSyncs() {
 
     if (error) {
       console.error('[Auto-Sync] Error fetching sync preferences:', error);
+      console.error('[Auto-Sync] Error details:', JSON.stringify(error, null, 2));
       return;
     }
 
+    console.log('[Auto-Sync] Query returned:', preferences);
+    console.log('[Auto-Sync] Preferences count:', preferences?.length || 0);
+
     if (!preferences || preferences.length === 0) {
       console.log('[Auto-Sync] No users with polling enabled');
+
+      // Debug: Check if ANY preferences exist
+      const { data: allPrefs, error: allError } = await supabase
+        .from('user_sync_preferences')
+        .select('*');
+      console.log('[Auto-Sync DEBUG] Total preferences in DB:', allPrefs?.length || 0);
+      if (allPrefs && allPrefs.length > 0) {
+        console.log('[Auto-Sync DEBUG] Sample preference:', allPrefs[0]);
+      }
+      if (allError) {
+        console.error('[Auto-Sync DEBUG] Error fetching all prefs:', allError);
+      }
       return;
     }
 

@@ -37,6 +37,7 @@ async function getEmails(userId: string, filters: {
       { count: 'exact' }
     )
     .eq('user_id', userId)
+    .not('labels', 'cs', '{TRASH}')
     .order('received_at', { ascending: false })
     .limit(50);
 
