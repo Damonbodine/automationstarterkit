@@ -3,7 +3,17 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 
-const timezones = Intl.supportedValuesOf ? (Intl as any).supportedValuesOf('timeZone') as string[] : [];
+const getTimezones = (): string[] => {
+  try {
+    if (typeof Intl !== 'undefined' && 'supportedValuesOf' in Intl) {
+      return (Intl as any).supportedValuesOf('timeZone') as string[];
+    }
+  } catch {
+    // Fall back to empty array if method doesn't exist
+  }
+  return [];
+};
+const timezones = getTimezones();
 
 export default function TimezonePreference({ initialTz }: { initialTz: string }) {
   const [tz, setTz] = useState(initialTz || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
