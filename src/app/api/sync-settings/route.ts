@@ -117,7 +117,9 @@ export async function PUT(req: NextRequest) {
         .select('custom_config')
         .eq('user_id', session.user.id)
         .maybeSingle();
-      const merged = { ...(existing?.custom_config || {}), ...(custom_config || {}) };
+      const existingConfig = (existing?.custom_config && typeof existing.custom_config === 'object') ? existing.custom_config as Record<string, any> : {};
+      const newConfig = (custom_config && typeof custom_config === 'object') ? custom_config as Record<string, any> : {};
+      const merged = { ...existingConfig, ...newConfig };
       updateData.custom_config = merged;
     }
 
