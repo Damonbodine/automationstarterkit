@@ -3,6 +3,11 @@ import { getSupabaseServerClient } from '@/lib/db/client';
 import { getRedisClient } from '@/lib/queue/redis-client';
 
 export async function GET(_req: NextRequest) {
+  // In production, avoid leaking detailed integration status
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ ok: true });
+  }
+
   const supabase = getSupabaseServerClient();
   const checks: Record<string, any> = {
     supabase: false,
@@ -37,4 +42,3 @@ export async function GET(_req: NextRequest) {
   const ok = Object.values(checks).every(Boolean);
   return NextResponse.json({ ok, checks });
 }
-

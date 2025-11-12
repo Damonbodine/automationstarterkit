@@ -74,12 +74,14 @@ DATABASE_URL="postgresql://postgres.${PROJECT_REF}:${DB_PASSWORD}@aws-0-us-west-
 
 # Step 4: Create .env.local file
 echo -e "${BLUE}Step 4: Creating .env.local file...${NC}"
-ENV_FILE="/Users/damonbodine/automation/ocr-app/.env.local"
+# Determine repository root
+REPO_ROOT="$(cd "$(dirname "$0")"/.. && pwd)"
+ENV_FILE="$REPO_ROOT/.env.local"
 
 # Read existing .env if it exists to preserve some values
 ANTHROPIC_KEY=""
-if [ -f "/Users/damonbodine/automation/.env" ]; then
-    ANTHROPIC_KEY=$(grep "ANTHROPIC_API_KEY" /Users/damonbodine/automation/.env | cut -d '=' -f2)
+if [ -f "$REPO_ROOT/.env" ]; then
+    ANTHROPIC_KEY=$(grep "^ANTHROPIC_API_KEY=" "$REPO_ROOT/.env" | cut -d '=' -f2-)
 fi
 
 # Generate NextAuth secret
@@ -111,15 +113,15 @@ NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
 # ------------------------------------------------------------------------------
 # Google Cloud Platform
 # ------------------------------------------------------------------------------
-GOOGLE_CLOUD_PROJECT=possible-point-477719-n3
+GOOGLE_CLOUD_PROJECT=your-google-project-id
 GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-your-google-client-secret
 
-# Service Account (existing)
-GOOGLE_APPLICATION_CREDENTIALS=/Users/damonbodine/automation/gcloud-keys.json
+# Service Account (base64 preferred in CI)
+# GOOGLE_APPLICATION_CREDENTIALS_BASE64=base64-encoded-service-account-json
 
-# Cloud Storage Bucket (existing)
-GCS_BUCKET_NAME=possible-point-477719-n3-pdfs
+# Cloud Storage Bucket
+GCS_BUCKET_NAME=your-gcs-bucket-name
 
 # ------------------------------------------------------------------------------
 # Pub/Sub - Gmail Notifications
@@ -161,7 +163,7 @@ echo ""
 echo "We'll now run the SQL migrations to create all tables."
 echo ""
 
-MIGRATIONS_DIR="/Users/damonbodine/automation/supabase/migrations"
+MIGRATIONS_DIR="$REPO_ROOT/supabase/migrations"
 
 for migration in "$MIGRATIONS_DIR"/*.sql; do
     filename=$(basename "$migration")
@@ -229,7 +231,7 @@ echo ""
 echo -e "${YELLOW}Important Files:${NC}"
 echo "- Environment: ${ENV_FILE}"
 echo "- Migrations: ${MIGRATIONS_DIR}"
-echo "- Documentation: /Users/damonbodine/automation/supabase/README.md"
+echo "- Documentation: ${REPO_ROOT}/supabase/README.md"
 echo ""
 echo -e "${GREEN}Your Supabase dashboard:${NC} ${SUPABASE_URL}"
 echo ""

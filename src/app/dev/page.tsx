@@ -3,6 +3,18 @@
 import { useState } from 'react';
 
 export default function DevPage() {
+  // Disable dev console in production builds
+  if (process.env.NODE_ENV === 'production') {
+    return (
+      <main className="p-6 max-w-3xl mx-auto">
+        <h1 className="text-xl font-semibold">Dev Console Disabled</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          This page is available only in development. Remove or guard this route
+          before enabling in production.
+        </p>
+      </main>
+    );
+  }
   const [log, setLog] = useState<string>('');
   const [limit, setLimit] = useState<number>(25);
   const [emailId, setEmailId] = useState<string>('');

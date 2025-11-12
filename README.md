@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**Live Demo:** [https://ocr-app-damonbodine-9a1df734.vercel.app](https://ocr-app-damonbodine-9a1df734.vercel.app)
+**Live Demo:** Coming soon
 
 ---
 

@@ -10,9 +10,20 @@
     "workers": "tsx scripts/start-workers.ts"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "author": "Executive Assistant AI Contributors",
+  "license": "MIT",
+  "description": "AI-powered executive assistant for email, documents, and projects.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/executive-assistant-ai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/executive-assistant-ai/issues"
+  },
+  "homepage": "https://github.com/your-org/executive-assistant-ai#readme",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "@auth/supabase-adapter": "^1.11.1",
