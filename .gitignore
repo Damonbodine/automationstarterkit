@@ -1,61 +1,78 @@
-# Python
+
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-env/
-ENV/
-*.egg-info/
-dist/
-build/
-
-# Sensitive files
-gcloud-keys.json
-*.json.key
-*.pem
-.env
-.env.local
-.env.*.local
-
-# Uploads directory
-uploads/*
 !uploads/.gitkeep
-
+.AppleDouble
+.coverage
+.DS_Store
+.env
+.env.*.local
+.env.local
+.env.production
+.env*.local
+.idea
+.idea/
+.LSOverride
+.next
+.nyc_output
+.pytest_cache/
+.Python
+.temp/
+.vercel
+.vscode
+.vscode/
+*.backup
+*.egg-info/
+*.json.key
+*.key
+*.log
+*.pem
+*.py[cod]
+*.so
+*.swo
+*.swp
+*~
+*$py.class
+# Debug
+# Dependencies
+# Environment variables
+# IDE
+# IDEs
+# Logs
+# macOS
+# Misc
+# Next.js
+# Next.js (ocr-app)
+# OS
+# Production
+# Python
+# Sensitive files
 # Templates (if they're generated)
 # templates/
-
-# Next.js (ocr-app)
-ocr-app/.next/
-ocr-app/out/
-ocr-app/node_modules/
-ocr-app/.env.local
-ocr-app/.env.*.local
-
-# Dependencies
+# Testing
+# Uploads directory
+# Vercel
+build
+build/
+coverage
+dist
+dist/
+env/
+ENV/
+gcloud-keys.json
+htmlcov/
+node_modules
 node_modules/
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Logs
-*.log
 npm-debug.log*
+ocr-app/.env.*.local
+ocr-app/.env.local
+ocr-app/.next/
+ocr-app/node_modules/
+ocr-app/out/
+out
+service-account*.json
+Thumbs.db
+tsconfig.tsbuildinfo
+uploads/*
+venv/
 yarn-debug.log*
 yarn-error.log*
-
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-.temp/
