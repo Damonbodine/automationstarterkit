@@ -6,6 +6,8 @@ interface DocumentSummary {
   key_points: string[];
   document_type: string;
   word_count: number;
+  attachments?: Array<{ filename: string; type: string }>;
+  links?: string[];
 }
 
 /**
@@ -36,13 +38,45 @@ export async function summarizeDocument(emailId: string): Promise<DocumentSummar
   const body = email.body_plain || email.body_html || '';
   const wordCount = body.split(/\s+/).length;
 
+  // Fetch OCR text and attachments for this email
+  const { data: docs } = await supabase
+    .from('documents')
+    .select('filename, file_type, ocr_text')
+    .eq('email_id', emailId);
+
+  const ocrSnippets = (docs || [])
+    .map(d => (d.ocr_text || '').toString().trim())
+    .filter(Boolean)
+    .map(t => (t.length > 2000 ? t.slice(0, 2000) + '…' : t));
+
+  const attachments = (docs || []).map(d => ({ filename: d.filename as string, type: (d.file_type as string) || '' }));
+
+  // Extract URLs from the email body to surface referenced sites
+  const urlRegex = /(https?:\/\/[\w\-._~:/?#[\]@!$&'()*+,;=%]+)/gi;
+  const links = Array.from(new Set((body.match(urlRegex) || []).slice(0, 20)));
+
+  // Pull latest fetched external content (if any)
+  const { data: linkLog } = await supabase
+    .from('agent_logs')
+    .select('output_data, created_at')
+    .eq('email_id', emailId)
+    .eq('user_id', email.user_id)
+    .eq('agent_type', 'link-fetch')
+    .eq('success', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const externalTexts: Array<{ url: string; type: string; content: string }> = (linkLog?.output_data as any)?.external_texts || [];
+
   // Only summarize if document is substantial (>200 words)
-  if (wordCount < 200) {
+  if (wordCount < 200 && ocrSnippets.length === 0) {
     return {
       summary: body.substring(0, 500),
       key_points: [],
       document_type: 'short_email',
       word_count: wordCount,
+      attachments,
+      links,
     };
   }
 
@@ -51,8 +85,17 @@ export async function summarizeDocument(emailId: string): Promise<DocumentSummar
 From: ${email.from_email}
 Subject: ${email.subject}
 
-Content:
+Primary Email Content (trimmed):
 ${body.substring(0, 8000)}
+
+Extracted Attachment Text (trimmed, may be empty):
+${ocrSnippets.join('\n\n---\n\n').substring(0, 8000)}
+
+Referenced Links (from email):
+${links.join('\n')}
+
+External Web Content (trimmed, user-fetched):
+${externalTexts.map(e => `URL: ${e.url}\nTYPE: ${e.type}\nCONTENT:\n${(e.content || '').slice(0, 4000)}`).join('\n\n---\n\n').slice(0, 8000)}
 
 Provide:
 1. A 2-3 sentence summary capturing the main purpose and conclusions
@@ -67,7 +110,9 @@ Respond in JSON format:
     "Second key point",
     "Third key point"
   ],
-  "document_type": "email"
+  "document_type": "email",
+  "attachments": [{ "filename": "..", "type": ".." }],
+  "links": ["https://..."]
 }`;
 
   const message = await createClaudeMessage({ prompt, maxTokens: 1024 });
@@ -90,6 +135,8 @@ Respond in JSON format:
     key_points: result.key_points,
     document_type: result.document_type,
     word_count: wordCount,
+    attachments,
+    links,
   };
 
   // Save summary to email_messages table for faster access

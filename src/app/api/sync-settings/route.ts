@@ -71,12 +71,13 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const {
+  const {
       auto_sync_enabled,
       sync_strategy,
       polling_interval_minutes,
       polling_enabled,
       webhook_enabled,
+      custom_config,
     } = body;
 
     // Validate inputs
@@ -109,6 +110,16 @@ export async function PUT(req: NextRequest) {
     if (polling_interval_minutes !== undefined) updateData.polling_interval_minutes = polling_interval_minutes;
     if (polling_enabled !== undefined) updateData.polling_enabled = polling_enabled;
     if (webhook_enabled !== undefined) updateData.webhook_enabled = webhook_enabled;
+    if (custom_config !== undefined) {
+      // Merge with existing custom_config if present
+      const { data: existing } = await supabase
+        .from('user_sync_preferences')
+        .select('custom_config')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+      const merged = { ...(existing?.custom_config || {}), ...(custom_config || {}) };
+      updateData.custom_config = merged;
+    }
 
     // Upsert preferences
     const { data, error } = await supabase

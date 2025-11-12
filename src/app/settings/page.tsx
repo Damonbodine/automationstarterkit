@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/lib/utils';
 import { User, Mail, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
+import TimezonePreference from '@/components/settings/TimezonePreference';
+import { getUserPreferences } from '@/lib/config/user-preferences';
 
 async function getUserSettings(userId: string) {
   const supabase = getSupabaseServerClient();
@@ -25,9 +27,13 @@ async function getUserSettings(userId: string) {
     .eq('user_id', userId)
     .single();
 
+  // Preferences
+  const prefs = await getUserPreferences(userId);
+
   return {
     user: user || null,
     syncState: syncState || null,
+    timezone: prefs?.custom_config?.timezone || null,
   };
 }
 
@@ -38,7 +44,7 @@ export default async function SettingsPage() {
     redirect('/login');
   }
 
-  const { user, syncState } = await getUserSettings(session.user.id);
+  const { user, syncState, timezone } = await getUserSettings(session.user.id);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -193,6 +199,14 @@ export default async function SettingsPage() {
               <CardDescription>Customize your experience</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Time zone</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Used for calendar events and reminders</p>
+                </div>
+                <TimezonePreference initialTz={timezone || 'UTC'} />
+              </div>
+
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100">

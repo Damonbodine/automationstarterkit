@@ -6,6 +6,7 @@ export const QUEUE_NAMES = {
   EMAIL_SYNC: 'email-sync',
   EMAIL_CLASSIFICATION: 'email-classification',
   AI_AGENTS: 'ai-agents',
+  DOCUMENT_OCR: 'document-ocr',
   DEAD_LETTER: 'dead-letter',
 } as const;
 
@@ -25,6 +26,13 @@ export interface AIAgentJob {
   emailId: string;
   userId: string;
   metadata?: Record<string, any>;
+}
+
+export interface DocumentOCRJob {
+  documentId: string;
+  userId: string;
+  gcsUrl: string;
+  mimeType: string;
 }
 
 export interface DeadLetterJob {
@@ -70,6 +78,12 @@ export const emailClassificationQueue = new Queue<EmailClassificationJob>(
 // AI Agents Queue
 export const aiAgentsQueue = new Queue<AIAgentJob>(
   QUEUE_NAMES.AI_AGENTS,
+  queueConfig
+);
+
+// Document OCR Queue
+export const documentOcrQueue = new Queue<DocumentOCRJob>(
+  QUEUE_NAMES.DOCUMENT_OCR,
   queueConfig
 );
 
@@ -124,6 +138,19 @@ export async function queueAIAgent(
     {
       priority: type === 'sow-generator' ? 1 : 2,
       jobId: `${type}-${emailId}`,
+    }
+  );
+}
+
+/** Queue a document OCR job */
+export async function queueDocumentOCR(job: DocumentOCRJob) {
+  return await documentOcrQueue.add(
+    'document-ocr',
+    job,
+    {
+      jobId: `doc-ocr-${job.documentId}`,
+      priority: 1,
+      removeOnComplete: true,
     }
   );
 }

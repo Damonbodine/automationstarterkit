@@ -3,6 +3,8 @@ import { getSupabaseServerClient } from '@/lib/db/client';
 import { queueEmailClassification } from '@/lib/queue/queues';
 import { ImageAnnotatorClient, protos } from '@google-cloud/vision';
 import { Storage } from '@google-cloud/storage';
+import { orchestrationHooks } from '@/lib/orchestration/hooks';
+import { ocrPdfFromGCS } from '@/lib/ocr/pdf-ocr';
 
 /**
  * Sync emails for a user
@@ -14,7 +16,10 @@ export async function syncEmails(userId: string, fullSync = false): Promise<{
   const supabase = getSupabaseServerClient();
   const visionClient = new ImageAnnotatorClient();
   const storage = new Storage();
-  const BUCKET_NAME = process.env.GCS_BUCKET_NAME || 'possible-point-477719-n3-pdfs';
+  const BUCKET_NAME = process.env.GCS_BUCKET_NAME;
+  if (!BUCKET_NAME) {
+    throw new Error('GCS_BUCKET_NAME is required for attachment storage/OCR');
+  }
 
   try {
     // Get sync state
@@ -52,6 +57,9 @@ export async function syncEmails(userId: string, fullSync = false): Promise<{
         for (const message of fullMessages) {
           try {
             const emailId = await saveEmail(userId, message);
+            if (emailId) {
+              await orchestrationHooks.onEmailSaved({ userId, emailId, subject: GmailClient.parseHeaders(message).subject });
+            }
             synced++;
 
             // Queue for classification
@@ -117,6 +125,7 @@ export async function syncEmails(userId: string, fullSync = false): Promise<{
               // Queue for classification
               if (emailId) {
                 await queueEmailClassification(emailId, userId);
+                await orchestrationHooks.onEmailSaved({ userId, emailId, subject: GmailClient.parseHeaders(message).subject });
               }
 
               // Process attachments
@@ -319,6 +328,17 @@ async function processAttachments(args: {
           .update({ ocr_text: ocrText, ocr_completed_at: new Date().toISOString() })
           .eq('id', documentId);
       }
+
+      // Fire orchestration hook
+      await orchestrationHooks.onDocumentCreated({
+        userId,
+        emailId: emailId || null,
+        documentId,
+        filename: safeName,
+        mimeType: att.mimeType,
+        gcsUrl: gcsUrl,
+        ocrText: ocrText ?? null,
+      });
     } catch (e) {
       console.error('Attachment processing failed:', e);
       // Continue with other attachments
@@ -326,61 +346,4 @@ async function processAttachments(args: {
   }
 }
 
-async function ocrPdfFromGCS(
-  visionClient: ImageAnnotatorClient,
-  storage: Storage,
-  bucketName: string,
-  gcsSourceUri: string
-): Promise<string> {
-  const outputUri = `${gcsSourceUri}-output/`;
-
-  const inputConfig = { gcsSource: { uri: gcsSourceUri }, mimeType: 'application/pdf' };
-  const outputConfig = { gcsDestination: { uri: outputUri }, batchSize: 1 };
-  const features: protos.google.cloud.vision.v1.IFeature[] = [{ type: 'DOCUMENT_TEXT_DETECTION' }];
-
-  const [operation] = await visionClient.asyncBatchAnnotateFiles({
-    requests: [{ inputConfig, features, outputConfig }],
-  });
-
-  if (!operation?.name) throw new Error('Failed to start PDF OCR operation');
-
-  // Poll for completion (simple polling with delay)
-  let done = false;
-  let attempts = 0;
-  while (!done && attempts < 40) { // up to ~2 minutes
-    await new Promise((r) => setTimeout(r, 3000));
-    const status = await visionClient.checkAsyncBatchAnnotateFilesProgress(operation.name);
-    if (status.done) {
-      if (status.error) throw new Error(status.error.message);
-      done = true;
-    }
-    attempts++;
-  }
-
-  if (!done) throw new Error('PDF OCR timed out');
-
-  // Read output JSONs and concat text
-  const prefix = outputUri.replace(`gs://${bucketName}/`, '');
-  const [files] = await storage.bucket(bucketName).getFiles({ prefix });
-  let fullText = '';
-  for (const file of files) {
-    const [output] = await file.download();
-    const result = JSON.parse(output.toString());
-    for (const response of result.responses) {
-      fullText += response.fullTextAnnotation?.text || '';
-    }
-  }
-
-  // Cleanup GCS outputs (best effort)
-  try {
-    for (const file of files) {
-      await file.delete();
-    }
-    const sourceFilename = prefix.replace('-output/', '');
-    await storage.bucket(bucketName).file(sourceFilename).delete({ ignoreNotFound: true } as any);
-  } catch (cleanupErr) {
-    console.warn('Failed to cleanup OCR artifacts:', cleanupErr);
-  }
-
-  return fullText;
-}
+// Moved PDF OCR to src/lib/ocr/pdf-ocr.ts

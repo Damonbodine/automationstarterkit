@@ -2,6 +2,7 @@ import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import { getSupabaseServerClient } from '@/lib/db/client';
 import { encryptToken, decryptToken } from '@/lib/encryption/token-encryption';
+import { queueEmailSync } from '@/lib/queue/queues';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -16,7 +17,8 @@ export const authOptions: NextAuthOptions = {
             'https://www.googleapis.com/auth/userinfo.profile',
             'https://www.googleapis.com/auth/gmail.readonly',
             'https://www.googleapis.com/auth/gmail.modify',
-            'https://www.googleapis.com/auth/drive.readonly',
+            'https://www.googleapis.com/auth/gmail.send',
+            'https://www.googleapis.com/auth/drive.file',
             'https://www.googleapis.com/auth/documents',
             'https://www.googleapis.com/auth/spreadsheets',
             'https://www.googleapis.com/auth/calendar',
@@ -54,17 +56,16 @@ export const authOptions: NextAuthOptions = {
           .single();
 
         if (existingUser) {
-          // Update existing user
-          await supabase
-            .from('users')
-            .update({
-              name: user.name || null,
-              google_user_id: account.providerAccountId,
-              google_access_token: encryptedAccessToken,
-              google_refresh_token: encryptedRefreshToken,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', existingUser.id);
+          // Update existing user - avoid overwriting refresh token with null
+          const updates: Record<string, any> = {
+            name: user.name || null,
+            google_user_id: account.providerAccountId,
+            updated_at: new Date().toISOString(),
+          };
+          if (encryptedAccessToken) updates.google_access_token = encryptedAccessToken;
+          if (encryptedRefreshToken) updates.google_refresh_token = encryptedRefreshToken;
+
+          await supabase.from('users').update(updates).eq('id', existingUser.id);
         } else {
           // Create new user
           await supabase.from('users').insert({
@@ -88,6 +89,13 @@ export const authOptions: NextAuthOptions = {
               user_id: newUser.id,
               sync_status: 'active',
             });
+
+            // Kick off an initial full sync for demo-fast experience
+            try {
+              await queueEmailSync(newUser.id, true);
+            } catch (e) {
+              console.warn('Failed to queue initial email sync:', e);
+            }
           }
         }
 

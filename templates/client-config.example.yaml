@@ -1,0 +1,61 @@
+# Example Client Configuration (Starter Pack)
+
+client:
+  slug: acme-co
+  name: Acme Co.
+  timezone: America/Los_Angeles
+  default_reply_signature: |
+    Thanks,
+    Acme Team
+
+email:
+  routing_labels:
+    finance: ["invoice", "receipt", "payment", "bill"]
+    sales: ["quote", "proposal", "estimate"]
+    support: ["issue", "bug", "help", "support"]
+  auto_replies:
+    - when:
+        category: finance
+        contains_any: ["invoice", "payment"]
+      then:
+        reply_template: "default-finance-ack"
+
+drive:
+  project_folders:
+    main: "Project: {project_name}"
+    subfolders:
+      - Documents
+      - Spreadsheets
+      - Assets
+      - Deliverables
+  shared_with:
+    - email: finance@acme.co
+      folders: ["Documents", "Spreadsheets"]
+      role: reader
+
+templates:
+  docs:
+    sow_default: "default-0"   # From TemplateManager default templates
+  sheets:
+    tracker_default: "default-0"
+
+automations:
+  - name: Invoice Intake
+    when:
+      category: finance
+    then:
+      - action: ocr_extract_to_sheet
+        sheet_template: tracker_default
+        sheet_name: Finance
+      - action: move_attachments_to_drive
+        subfolder: "Documents"
+      - action: tag_email
+        labels: ["FINANCE", "INTAKE"]
+
+calendar:
+  booking:
+    default_duration_minutes: 30
+    reminders:
+      - method: email
+        minutes: 30
+

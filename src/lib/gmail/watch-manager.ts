@@ -20,26 +20,8 @@ export async function startGmailWatch(userId: string): Promise<void> {
   try {
     console.log(`[Watch Manager] Starting Gmail watch for user ${userId}`);
 
-    // Get user's tokens from database
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('google_access_token, google_refresh_token, email')
-      .eq('id', userId)
-      .single();
-
-    if (userError || !user) {
-      throw new Error(`User not found: ${userId}`);
-    }
-
-    if (!user.google_access_token || !user.google_refresh_token) {
-      throw new Error(`User ${userId} does not have Google OAuth tokens`);
-    }
-
-    // Create Gmail client
-    const gmailClient = new GmailClient(
-      user.google_access_token,
-      user.google_refresh_token
-    );
+    // Create Gmail client using stored, decrypted credentials
+    const gmailClient = await GmailClient.forUser(userId);
 
     // Start watching
     const watchResponse = await gmailClient.watch(PUBSUB_TOPIC);
@@ -131,26 +113,8 @@ export async function stopGmailWatch(userId: string): Promise<void> {
   try {
     console.log(`[Watch Manager] Stopping Gmail watch for user ${userId}`);
 
-    // Get user's tokens from database
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('google_access_token, google_refresh_token')
-      .eq('id', userId)
-      .single();
-
-    if (userError || !user) {
-      throw new Error(`User not found: ${userId}`);
-    }
-
-    if (!user.google_access_token || !user.google_refresh_token) {
-      throw new Error(`User ${userId} does not have Google OAuth tokens`);
-    }
-
     // Create Gmail client
-    const gmailClient = new GmailClient(
-      user.google_access_token,
-      user.google_refresh_token
-    );
+    const gmailClient = await GmailClient.forUser(userId);
 
     // Stop watching
     await gmailClient.stopWatch();

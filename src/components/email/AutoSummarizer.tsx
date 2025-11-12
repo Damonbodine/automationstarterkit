@@ -8,17 +8,19 @@ interface AutoSummarizerProps {
   emailId: string;
   hasSummary: boolean;
   wordCount?: number;
+  attachmentsCount?: number;
 }
 
-export default function AutoSummarizer({ emailId, hasSummary, wordCount = 0 }: AutoSummarizerProps) {
+export default function AutoSummarizer({ emailId, hasSummary, wordCount = 0, attachmentsCount = 0 }: AutoSummarizerProps) {
   const job = useAgentJob(emailId, 'document-summarizer');
 
   // Auto-trigger summary generation if email is long enough and doesn't have one
   useEffect(() => {
-    if (!hasSummary && wordCount > 200 && !job.isRunning) {
+    const shouldSummarize = !hasSummary && !job.isRunning && (wordCount > 200 || attachmentsCount > 0);
+    if (shouldSummarize) {
       job.startJob();
     }
-  }, [hasSummary, wordCount, job]);
+  }, [hasSummary, wordCount, attachmentsCount, job]);
 
   return (
     <AgentJobModal

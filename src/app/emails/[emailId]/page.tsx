@@ -18,6 +18,8 @@ import type { EmailWithClassification, Task } from '@/types/ui';
 import RunAgentActions from '@/components/email/RunAgentActions';
 import AutoSummarizer from '@/components/email/AutoSummarizer';
 import EmailThread from '@/components/email/EmailThread';
+import InlineOCR from '@/components/email/InlineOCR';
+import SummaryLinkEnrich from '@/components/email/SummaryLinkEnrich';
 
 async function getEmailDetails(emailId: string, userId: string) {
   const supabase = getSupabaseServerClient();
@@ -126,6 +128,8 @@ export default async function EmailDetailPage({ params }: PageProps) {
   // Calculate word count for auto-summarization
   const emailBody = email.body_plain || email.body_html || '';
   const wordCount = emailBody.split(/\s+/).length;
+  const urlRegex = /(https?:\/\/[\w\-._~:/?#[\]@!$&'()*+,;=%]+)/gi;
+  const detectedLinks = Array.from(new Set((emailBody.match(urlRegex) || []).slice(0, 10)));
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 dark:bg-gray-900">
@@ -134,6 +138,7 @@ export default async function EmailDetailPage({ params }: PageProps) {
         emailId={email.id}
         hasSummary={!!summary}
         wordCount={wordCount}
+        attachmentsCount={documents.length}
       />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -174,6 +179,9 @@ export default async function EmailDetailPage({ params }: PageProps) {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {detectedLinks.length > 0 && (
+                    <SummaryLinkEnrich emailId={email.id} links={detectedLinks} />
+                  )}
                   <div>
                     <p className="text-sm text-gray-700 dark:text-gray-300">{summary.summary}</p>
                   </div>
@@ -195,6 +203,9 @@ export default async function EmailDetailPage({ params }: PageProps) {
 
             {/* Email Thread */}
             <EmailThread emails={threadEmails} currentEmailId={emailId} />
+
+            {/* Inline OCR Text */}
+            <InlineOCR emailId={email.id} />
 
             {/* Attachments */}
             {documents.length > 0 && (

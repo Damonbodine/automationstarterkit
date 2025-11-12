@@ -1,6 +1,7 @@
 import { google, gmail_v1 } from 'googleapis';
 import { getSupabaseServerClient } from '@/lib/db/client';
 import { decryptToken, encryptToken } from '@/lib/encryption/token-encryption';
+import { withGoogleRetry } from '@/lib/google/retry';
 
 /**
  * Rate limiter for Gmail API requests
@@ -124,13 +125,15 @@ export class GmailClient {
   }> {
     await rateLimiter.acquire(this.userId);
 
-    const response = await this.gmail.users.messages.list({
-      userId: 'me',
-      maxResults: options.maxResults || 100,
-      pageToken: options.pageToken,
-      q: options.q,
-      labelIds: options.labelIds,
-    });
+    const response = await withGoogleRetry(() =>
+      this.gmail.users.messages.list({
+        userId: 'me',
+        maxResults: options.maxResults || 100,
+        pageToken: options.pageToken,
+        q: options.q,
+        labelIds: options.labelIds,
+      })
+    );
 
     return {
       messages: response.data.messages || [],
@@ -144,11 +147,13 @@ export class GmailClient {
   async getMessage(messageId: string): Promise<gmail_v1.Schema$Message> {
     await rateLimiter.acquire(this.userId);
 
-    const response = await this.gmail.users.messages.get({
-      userId: 'me',
-      id: messageId,
-      format: 'full',
-    });
+    const response = await withGoogleRetry(() =>
+      this.gmail.users.messages.get({
+        userId: 'me',
+        id: messageId,
+        format: 'full',
+      })
+    );
 
     return response.data;
   }
@@ -158,11 +163,13 @@ export class GmailClient {
    */
   async getAttachment(messageId: string, attachmentId: string) {
     await rateLimiter.acquire(this.userId);
-    const response = await this.gmail.users.messages.attachments.get({
-      userId: 'me',
-      messageId,
-      id: attachmentId,
-    });
+    const response = await withGoogleRetry(() =>
+      this.gmail.users.messages.attachments.get({
+        userId: 'me',
+        messageId,
+        id: attachmentId,
+      })
+    );
     return response.data;
   }
 
@@ -193,11 +200,13 @@ export class GmailClient {
   }> {
     await rateLimiter.acquire(this.userId);
 
-    const response = await this.gmail.users.history.list({
-      userId: 'me',
-      startHistoryId,
-      historyTypes: ['messageAdded', 'messageDeleted'],
-    });
+    const response = await withGoogleRetry(() =>
+      this.gmail.users.history.list({
+        userId: 'me',
+        startHistoryId,
+        historyTypes: ['messageAdded', 'messageDeleted'],
+      })
+    );
 
     return {
       history: response.data.history || [],
@@ -211,13 +220,15 @@ export class GmailClient {
   async watch(topicName: string): Promise<gmail_v1.Schema$WatchResponse> {
     await rateLimiter.acquire(this.userId);
 
-    const response = await this.gmail.users.watch({
-      userId: 'me',
-      requestBody: {
-        topicName,
-        labelIds: ['INBOX'],
-      },
-    });
+    const response = await withGoogleRetry(() =>
+      this.gmail.users.watch({
+        userId: 'me',
+        requestBody: {
+          topicName,
+          labelIds: ['INBOX'],
+        },
+      })
+    );
 
     return response.data;
   }
@@ -228,9 +239,11 @@ export class GmailClient {
   async stopWatch(): Promise<void> {
     await rateLimiter.acquire(this.userId);
 
-    await this.gmail.users.stop({
-      userId: 'me',
-    });
+    await withGoogleRetry(() =>
+      this.gmail.users.stop({
+        userId: 'me',
+      })
+    );
   }
 
   /**
@@ -243,14 +256,16 @@ export class GmailClient {
   ): Promise<gmail_v1.Schema$Message> {
     await rateLimiter.acquire(this.userId);
 
-    const response = await this.gmail.users.messages.modify({
-      userId: 'me',
-      id: messageId,
-      requestBody: {
-        addLabelIds,
-        removeLabelIds,
-      },
-    });
+    const response = await withGoogleRetry(() =>
+      this.gmail.users.messages.modify({
+        userId: 'me',
+        id: messageId,
+        requestBody: {
+          addLabelIds,
+          removeLabelIds,
+        },
+      })
+    );
 
     return response.data;
   }

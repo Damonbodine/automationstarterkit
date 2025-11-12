@@ -1,6 +1,7 @@
 import { google, calendar_v3 } from 'googleapis';
 import { getSupabaseServerClient } from '@/lib/db/client';
 import { decryptToken } from '@/lib/encryption/token-encryption';
+import { getUserTimezone } from '@/lib/config/user-preferences';
 
 /**
  * Google Calendar API client wrapper
@@ -127,12 +128,13 @@ export class CalendarClient {
       sendUpdates?: boolean;
     }
   ): Promise<{ eventId: string; eventUrl: string }> {
+    const timeZone = await getUserTimezone(this.userId);
     const event: calendar_v3.Schema$Event = {
       summary,
       description: options?.description,
       location: options?.location,
-      start: { dateTime: start.toISOString(), timeZone: 'UTC' },
-      end: { dateTime: end.toISOString(), timeZone: 'UTC' },
+      start: { dateTime: start.toISOString(), timeZone },
+      end: { dateTime: end.toISOString(), timeZone },
       attendees: options?.attendees?.map((email) => ({ email })),
       reminders: options?.reminders
         ? {
@@ -179,16 +181,20 @@ export class CalendarClient {
     if (updates.summary) requestBody.summary = updates.summary;
     if (updates.description) requestBody.description = updates.description;
     if (updates.location) requestBody.location = updates.location;
-    if (updates.start)
+    if (updates.start) {
+      const timeZone = await getUserTimezone(this.userId);
       requestBody.start = {
         dateTime: updates.start.toISOString(),
-        timeZone: 'UTC',
+        timeZone,
       };
-    if (updates.end)
+    }
+    if (updates.end) {
+      const timeZone = await getUserTimezone(this.userId);
       requestBody.end = {
         dateTime: updates.end.toISOString(),
-        timeZone: 'UTC',
+        timeZone,
       };
+    }
     if (updates.attendees)
       requestBody.attendees = updates.attendees.map((email) => ({ email }));
 

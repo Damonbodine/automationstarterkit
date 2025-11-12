@@ -17,6 +17,12 @@ import {
   checkAndQueuePollingSyncs,
   checkAndRenewWatches,
 } from './auto-sync-scheduler';
+import { orchestrationHooks } from '@/lib/orchestration/hooks';
+import { documentOcrQueue, DocumentOCRJob, queueAIAgent } from './queues';
+import { ImageAnnotatorClient } from '@google-cloud/vision';
+import { Storage } from '@google-cloud/storage';
+import { ocrPdfFromGCS } from '@/lib/ocr/pdf-ocr';
+import { getSupabaseServerClient } from '@/lib/db/client';
 
 /**
  * Email Sync Worker
@@ -69,6 +75,9 @@ export const emailClassificationWorker = new Worker<EmailClassificationJob>(
       console.log(
         `Email ${emailId} classified as ${classification.category} (confidence: ${classification.confidence_score})`
       );
+
+      // Fire orchestration hook post-classification
+      await orchestrationHooks.onEmailClassified({ userId, emailId, classification });
 
       return classification;
     } catch (error) {
@@ -147,6 +156,50 @@ export const deadLetterWorker = new Worker<DeadLetterJob>(
 );
 
 /**
+ * Document OCR Worker (PDFs)
+ */
+export const documentOcrWorker = new Worker<DocumentOCRJob>(
+  QUEUE_NAMES.DOCUMENT_OCR,
+  async (job: Job<DocumentOCRJob>) => {
+    const { documentId, userId, gcsUrl, mimeType } = job.data;
+    if (mimeType !== 'application/pdf') {
+      return { skipped: true };
+    }
+
+    const vision = new ImageAnnotatorClient();
+    const storage = new Storage();
+    const bucket = process.env.GCS_BUCKET_NAME;
+    if (!bucket) throw new Error('GCS_BUCKET_NAME not set');
+
+    const text = await ocrPdfFromGCS(vision, storage, bucket, gcsUrl);
+
+    const supabase = getSupabaseServerClient();
+    await supabase
+      .from('documents')
+      .update({ ocr_text: text, ocr_completed_at: new Date().toISOString() })
+      .eq('id', documentId)
+      .eq('user_id', userId);
+
+    // Re-summarize the parent email if available
+    const { data: docRow } = await supabase
+      .from('documents')
+      .select('email_id')
+      .eq('id', documentId)
+      .single();
+    const emailId = docRow?.email_id as string | undefined;
+    if (emailId) {
+      await queueAIAgent('document-summarizer', emailId, userId);
+    }
+
+    return { success: true, length: text.length };
+  },
+  {
+    connection: getRedisClient(),
+    concurrency: 2,
+  }
+);
+
+/**
  * Auto-Sync Scheduler Worker
  * Processes scheduled polling checks and watch renewals
  */
@@ -184,7 +237,7 @@ export const autoSyncSchedulerWorker = new Worker<AutoSyncSchedulerJob>(
 /**
  * Register error handlers for all workers
  */
-[emailSyncWorker, emailClassificationWorker, aiAgentsWorker, deadLetterWorker, autoSyncSchedulerWorker].forEach((worker) => {
+[emailSyncWorker, emailClassificationWorker, aiAgentsWorker, deadLetterWorker, autoSyncSchedulerWorker, documentOcrWorker].forEach((worker) => {
   worker.on('completed', (job) => {
     console.log(`Job ${job.id} completed successfully`);
   });
