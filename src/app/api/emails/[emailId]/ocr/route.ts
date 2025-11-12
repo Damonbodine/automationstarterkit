@@ -6,14 +6,14 @@ import { ImageAnnotatorClient } from '@google-cloud/vision';
 import { Storage } from '@google-cloud/storage';
 import { queueDocumentOCR } from '@/lib/queue/queues';
 
-export async function GET(_req: NextRequest, context: { params: { emailId: string } }) {
+export async function GET(_req: NextRequest, context: { params: Promise<{ emailId: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const userId = session.user.id;
-  const emailId = context.params.emailId;
+  const { emailId } = await context.params;
   const supabase = getSupabaseServerClient();
 
   // Fetch documents for email

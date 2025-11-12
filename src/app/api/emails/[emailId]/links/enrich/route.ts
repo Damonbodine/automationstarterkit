@@ -8,13 +8,13 @@ const MAX_LINKS = parseInt(process.env.LINK_ENRICH_MAX_LINKS || '3', 10);
 const MAX_BYTES = 200 * 1024; // 200KB per link cap
 const FETCH_TIMEOUT_MS = parseInt(process.env.LINK_FETCH_TIMEOUT_MS || '10000', 10);
 
-export async function POST(req: NextRequest, context: { params: { emailId: string } }) {
+export async function POST(req: NextRequest, context: { params: Promise<{ emailId: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const userId = session.user.id;
-  const emailId = context.params.emailId;
+  const { emailId } = await context.params;
   const supabase = getSupabaseServerClient();
 
   // Verify email belongs to user
