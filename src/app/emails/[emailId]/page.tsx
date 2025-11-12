@@ -129,7 +129,7 @@ export default async function EmailDetailPage({ params }: PageProps) {
   const emailBody = email.body_plain || email.body_html || '';
   const wordCount = emailBody.split(/\s+/).length;
   const urlRegex = /(https?:\/\/[\w\-._~:/?#[\]@!$&'()*+,;=%]+)/gi;
-  const detectedLinks = Array.from(new Set((emailBody.match(urlRegex) || []).slice(0, 10)));
+  const detectedLinks: string[] = Array.from(new Set((emailBody.match(urlRegex) || []).slice(0, 10)));
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 dark:bg-gray-900">
