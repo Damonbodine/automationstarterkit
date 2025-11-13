@@ -1,0 +1,79 @@
+flowchart LR
+  subgraph Client
+    Browser[User Browser]
+  end
+
+  subgraph App[Next.js App]
+    NextApp[App Router UI]
+    API[API Routes]
+  end
+
+  subgraph Data[Data Layer]
+    Supabase[(Supabase Postgres)]
+    Redis[(Redis / BullMQ)]
+  end
+
+  subgraph Google[Google Cloud]
+    Gmail[(Gmail)]
+    Drive[(Drive/Docs/Sheets/Calendar)]
+    GCS[(Cloud Storage)]
+    Vision[Vision OCR]
+    PubSub{{Gmail Pub/Sub}}
+  end
+
+  subgraph LLMs[AI]
+    Anthropic[Anthropic Claude]
+  end
+
+  subgraph Workers[Background Workers]
+    EmailSyncW[Email Sync Worker]
+    ClassifyW[Email Classification Worker]
+    AgentsW[AI Agents Worker]
+    OCRW[Document OCR Worker]
+    DeadW[Dead Letter Consumer]
+  end
+
+  Browser --> NextApp --> API
+  API --> Supabase
+  API --> Redis
+  API --> Drive
+  API --> GCS
+  API --> PubSub
+
+  PubSub -->|/api/webhooks/gmail| API
+  API -->|queueEmailSync| Redis
+  Redis --> EmailSyncW
+  EmailSyncW --> Gmail
+  EmailSyncW --> Supabase
+  EmailSyncW -->|attachments| GCS
+  EmailSyncW -->|queueEmailClassification| Redis
+
+  Redis --> ClassifyW
+  ClassifyW --> Anthropic
+  Anthropic --> ClassifyW
+  ClassifyW --> Supabase
+  ClassifyW -->|queueAIAgent| Redis
+
+  Redis --> AgentsW
+  AgentsW --> Anthropic
+  AgentsW --> Drive
+  AgentsW --> Supabase
+
+  Redis --> OCRW
+  OCRW --> GCS
+  OCRW --> Vision
+  OCRW --> Supabase
+
+  Redis --> DeadW
+
+  %% Queues
+  subgraph Queues
+    emailSync[email-sync]
+    emailClass[email-classification]
+    aiAgents[ai-agents]
+    docOCR[document-ocr]
+    deadLetter[dead-letter]
+  end
+
+  Redis --- emailSync & emailClass & aiAgents & docOCR & deadLetter
+

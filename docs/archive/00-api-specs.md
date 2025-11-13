@@ -1,5 +1,7 @@
 # API Specifications
 
+> Note: Canonical API reference is `docs/api.md`.
+
 **Version:** 1.0
 **Last Updated:** January 2025
 

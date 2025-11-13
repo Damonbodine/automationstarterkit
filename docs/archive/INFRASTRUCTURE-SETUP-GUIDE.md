@@ -1,5 +1,7 @@
 # Infrastructure Setup Guide - Getting Started
 
+> Note: Canonical operations guide is `docs/operations.md`. This file contains detailed step-by-step provisioning notes.
+
 ## 🚀 Quick Start: Infrastructure Agent Day 1 Tasks
 
 This guide will help you (or the Infrastructure Agent) provision all required services for the Executive Assistant AI Platform.

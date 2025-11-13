@@ -1,4 +1,5 @@
 # Infrastructure Readiness Report
+> Note: Canonical operations guide is `docs/operations.md`. This report tracks setup status and can be archived after consolidation.
 **Executive Assistant AI Platform**
 
 ---

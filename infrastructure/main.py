@@ -1,3 +1,9 @@
+"""
+DEPRECATED: This FastAPI OCR service is no longer used.
+The application performs OCR via Next.js workers and Cloud Vision (see src/lib/ocr/pdf-ocr.ts).
+Kept for historical reference; do not deploy in production.
+"""
+
 import io
 import os
 import re

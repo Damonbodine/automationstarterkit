@@ -1,4 +1,6 @@
 # Product Requirements Document (PRD)
+
+> Note: PRD is now organized by phases under `docs/prd/`. See `docs/prd/README.md` for the index.
 ## Executive Assistant AI Platform
 
 **Version:** 1.0

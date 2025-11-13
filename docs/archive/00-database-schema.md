@@ -1,5 +1,7 @@
 # Database Schema
 
+> Note: Canonical data model is `docs/data-model.md`. For up-to-date types see `src/types/database.ts`.
+
 **Version:** 1.0
 **Last Updated:** January 2025
 

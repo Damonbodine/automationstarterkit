@@ -1,0 +1,44 @@
+sequenceDiagram
+  autonumber
+  participant Gmail as Gmail
+  participant PubSub as Google Pub/Sub
+  participant API as Next API /webhooks/gmail
+  participant Q as BullMQ Queue
+  participant ESW as Email Sync Worker
+  participant G as Gmail API
+  participant DB as Supabase (Postgres)
+  participant GCS as Cloud Storage
+  participant OCR as Vision OCR
+  participant QC as Classification Queue
+  participant CW as Classification Worker
+  participant QA as AI Agents Queue
+  participant AW as AI Agents Worker
+  participant LLM as Anthropic Claude
+  participant UI as Next.js UI
+
+  Gmail->>PubSub: New message event
+  PubSub->>API: Push (OIDC verified)
+  API->>Q: queueEmailSync(userId)
+  Q->>ESW: sync-emails job
+  ESW->>G: List + Get messages (batched)
+  ESW->>DB: Upsert email_messages
+  alt Has attachments
+    ESW->>G: Get attachment data
+    ESW->>GCS: Upload file (gs://...)
+    opt PDF or image
+      ESW->>OCR: OCR request
+      OCR-->>ESW: Extracted text
+      ESW->>DB: Update documents.ocr_text
+    end
+  end
+  ESW->>QC: queueEmailClassification(emailId)
+  Q->>CW: classify-email job
+  CW->>LLM: Classify with Claude
+  LLM-->>CW: JSON classification
+  CW->>DB: Upsert email_classifications
+  CW->>QA: queueAIAgent(type, ...)
+  Q->>AW: ai-agents job
+  AW->>LLM: Generate output (SOW, tasks, summary)
+  AW->>DB: Persist agent_logs, tasks, scope_of_works
+  DB-->>UI: UI reflects updates (React Query)
+
